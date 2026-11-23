@@ -705,7 +705,15 @@ static void boot_prepare(void) {
         if (on.count && [bundledOverlay.lastPathComponent isEqualToString:@"romfs_overlay"]) plog("boot: 🔴 开关组合 %s 没有对应的覆盖层，按全关启动", [on.allObjects componentsJoinedByString:@"+"].UTF8String);
     }
     if (g_astc_dir) bundledOverlay = [NSString stringWithFormat:@"%@:%@", bundledOverlay, g_astc_dir];   // 第二层：补充包（data/<档名>，覆盖层索引指向它） | Second layer: the Legacy Device Pack (data/<archive name>, which the overlay index points to)
-    if (g_astc_dir || [fm fileExistsAtPath:bundledOverlay]) { setenv("DM_ROMFS_OVERLAY", bundledOverlay.fileSystemRepresentation, 1); plog("boot: RomFS 覆盖层 %s", bundledOverlay.fileSystemRepresentation); }
+    BOOL modLayer = NO;
+    {   // Drop-in mod layer (e.g. Vietnamese): Documents/Viet Hoa/data/.build.config present → put it in front of every other overlay layer. Remove the folder to go back to the stock overlay. No rebuild needed for new mod packs
+        NSString *mod = [doc stringByAppendingPathComponent:@"Viet Hoa"];
+        if ([fm fileExistsAtPath:[mod stringByAppendingPathComponent:@"data/.build.config"]]) {
+            bundledOverlay = [NSString stringWithFormat:@"%@:%@", mod, bundledOverlay]; modLayer = YES;
+            plog("boot: mod layer %s", mod.fileSystemRepresentation);
+        }
+    }
+    if (modLayer || g_astc_dir || [fm fileExistsAtPath:bundledOverlay]) { setenv("DM_ROMFS_OVERLAY", bundledOverlay.fileSystemRepresentation, 1); plog("boot: RomFS 覆盖层 %s", bundledOverlay.fileSystemRepresentation); }
     else plog("boot: 🔴 App 内缺 romfs_overlay（底部 UI v4），按原版 HUD 启动");
     setenv("DM_SAVE", [doc stringByAppendingPathComponent:@"save"].fileSystemRepresentation, 0);
     setenv("DM_TEMP", [doc stringByAppendingPathComponent:@"temp"].fileSystemRepresentation, 0);
